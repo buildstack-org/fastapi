@@ -1,10 +1,15 @@
 name: Avrea Test Intelligence
 
-# Runs this project's own test suite on Avrea runners, the way upstream's Test
-# workflow runs it on Ubuntu, and writes the pytest and coverage reports a
-# setup guide asks for. Manual only; not part of the upstream project.
+# Demo branch for the coverage trend on dev-varjo: measures the fastapi
+# package only and writes a coverage report, no test report. Each dispatch
+# can skip a few test files so coverage moves slightly. Manual only.
 on:
   workflow_dispatch:
+    inputs:
+      skip:
+        description: Test files to skip, separated by spaces
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -17,9 +22,8 @@ jobs:
   test:
     name: test (py${{ matrix.python-version }})
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.13", "3.14"]
+        python-version: ["3.14"]
     runs-on: buildstack-dev-varjo
     timeout-minutes: 30
     env:
@@ -43,4 +47,11 @@ jobs:
       - name: Install Dependencies
         run: uv sync --no-dev --group tests --extra all
       - name: Test
-        run: uv run --no-sync bash scripts/test-cov.sh --junitxml=junit-pytest.xml --cov-report=xml
+        env:
+          SKIP: ${{ inputs.skip }}
+          PYTHONPATH: ./docs_src
+        run: |
+          args=()
+          for path in $SKIP; do args+=("--ignore=$path"); done
+          uv run --no-sync pytest -n auto --dist loadgroup tests scripts/tests/ \
+            --cov=fastapi --cov-report=xml "${args[@]}"
