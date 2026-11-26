@@ -1,0 +1,46 @@
+name: Avrea Test Intelligence
+
+# Runs this project's own test suite on Avrea runners, the way upstream's Test
+# workflow runs it on Ubuntu, and writes the pytest and coverage reports a
+# setup guide asks for. Manual only; not part of the upstream project.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  UV_NO_SYNC: true
+  INLINE_SNAPSHOT_DEFAULT_FLAGS: review
+
+jobs:
+  test:
+    name: test (py${{ matrix.python-version }})
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14"]
+    runs-on: buildstack-dev-varjo
+    timeout-minutes: 30
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.3.2
+        with:
+          version: "latest-known"
+          enable-cache: true
+          cache-dependency-glob: |
+            pyproject.toml
+            uv.lock
+      - name: Install Dependencies
+        run: uv sync --no-dev --group tests --extra all
+      - name: Test
+        run: uv run --no-sync bash scripts/test-cov.sh --junitxml=junit-pytest.xml --cov-report=xml
