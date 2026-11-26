@@ -56,3 +56,16 @@ jobs:
           for path in $SKIP; do args+=("--ignore=$path"); done
           uv run --no-sync bash scripts/test.sh --cov=fastapi --cov-context=test \
             --cov-report=xml "${args[@]}"
+      # Job logs do not reach GitHub from this runner; annotations do.
+      - name: Report coverage totals
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          root = ET.parse("coverage.xml").getroot()
+          classes = root.findall(".//class")
+          sizes = sorted(((len(c.findall("lines/line")), c.get("filename")) for c in classes), reverse=True)[:5]
+          print(f"::notice title=coverage totals::line-rate={root.get('line-rate')} lines-covered={root.get('lines-covered')} lines-valid={root.get('lines-valid')} files={len(classes)} sources={[s.text for s in root.findall('sources/source')]}")
+          print(f"::notice title=largest files::{sizes}")
+          PY
+          ls -la coverage | head -5 | tr '\n' ' ' | sed 's/^/::notice title=coverage dir::/'; echo
