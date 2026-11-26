@@ -46,12 +46,13 @@ jobs:
             uv.lock
       - name: Install Dependencies
         run: uv sync --no-dev --group tests --extra all
+      # FastAPI's coverage settings write their data under coverage/.
+      - run: mkdir -p coverage
       - name: Test
         env:
           SKIP: ${{ inputs.skip }}
-          PYTHONPATH: ./docs_src
         run: |
           args=()
           for path in $SKIP; do args+=("--ignore=$path"); done
-          uv run --no-sync pytest -n auto --dist loadgroup tests scripts/tests/ \
-            --cov=fastapi --cov-report=xml "${args[@]}"
+          uv run --no-sync bash scripts/test.sh --cov=fastapi --cov-context=test \
+            --cov-report=xml "${args[@]}"
